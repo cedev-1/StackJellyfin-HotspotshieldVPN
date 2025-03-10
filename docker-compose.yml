@@ -1,0 +1,154 @@
+version: "3.3"
+
+services:
+  #---------------------------------------------
+  #                OPENVPN
+  #---------------------------------------------
+  vpn:
+    container_name: openvpn-container
+    image: dperson/openvpn-client
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - OPENVPN_USERNAME=${OPENVPN_USER}
+      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
+    volumes:
+      - ./config.ovpn:/etc/openvpn/config.ovpn:ro
+      - ./credentials:/etc/openvpn/credentials:ro
+    command: "openvpn --config /etc/openvpn/config.ovpn --auth-user-pass /etc/openvpn/credentials"
+    restart: always
+    ports:
+      - 8080:8080  # qBittorrent
+      - 8999:8999  # qBittorrent (TCP)
+      - 8999:8999/udp  # qBittorrent (UDP)
+      - 8989:8989  # Sonarr
+      - 7878:7878  # Radarr
+      - 5055:5055  # Jellyseerr
+      - 8096:8096  # Jellyfin
+      - 8920:8920  # Jellyfin (SSL)
+      - 7359:7359/udp  # Jellyfin
+      - 1900:1900/udp  # Jellyfin
+      - 9696:9696  # Prowlarr
+      - 8191:8191 # FlareSolverr
+
+  #---------------------------------------------
+  #              QBITTORRENT
+  #---------------------------------------------
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    depends_on:
+      - vpn
+    environment:
+      - WEBUI_PORT=8080
+      - PUID=0
+      - PGID=0
+      - TZ=${TZ}
+    volumes:
+      - ${NAS_PATH}:${NAS_PATH}
+      - ${COMMON_PATH}/configs/qbittorrent:/config
+      - ${NAS_PATH}/Downloads:/downloads
+    network_mode: "service:vpn"
+    restart: unless-stopped
+
+  #---------------------------------------------
+  #              FLARESOLVERR
+  #---------------------------------------------
+  flaresolverr:
+    image: 21hsmw/flaresolverr:nodriver
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - DRIVER=nodriver
+    network_mode: "service:vpn"
+    restart: unless-stopped
+
+  #---------------------------------------------
+  #                PROWLARR
+  #---------------------------------------------
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=${TZ}
+    volumes:
+      - ${NAS_PATH}:${NAS_PATH}
+      - ${COMMON_PATH}/configs/prowlarr:/config
+    network_mode: "service:vpn"
+    restart: unless-stopped
+
+  #---------------------------------------------
+  #                SONARR
+  #---------------------------------------------
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=${TZ}
+    volumes:
+      - ${NAS_PATH}:${NAS_PATH}
+      - ${COMMON_PATH}/configs/sonarr:/config
+      - ${NAS_PATH}/Series:/tv
+      - ${NAS_PATH}/Downloads:/downloads
+    network_mode: "service:vpn"
+    restart: unless-stopped
+
+  #---------------------------------------------
+  #                RADARR
+  #---------------------------------------------
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=${TZ}
+    volumes:
+      - ${NAS_PATH}:${NAS_PATH}
+      - ${COMMON_PATH}/configs/radarr:/config
+      - ${NAS_PATH}/Movies:/movies
+      - ${NAS_PATH}/Downloads:/downloads
+    network_mode: "service:vpn"
+    restart: unless-stopped
+
+  #---------------------------------------------
+  #                JELLYFIN
+  #--------------------------------------------
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=${TZ}
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ${NAS_PATH}:${NAS_PATH}
+      - ${COMMON_PATH}/configs/jellyfin:/config
+      - ${COMMON_PATH}/jellyfin/cache:/cache
+      - ${NAS_PATH}/Series:/data/tvshows
+      - ${NAS_PATH}/Movies:/data/movies
+      - ${NAS_PATH}/Movies:/data/media_downloads
+    network_mode: "service:vpn"
+    restart: unless-stopped
+
+  #---------------------------------------------
+  #                JELLYSEERR
+  #---------------------------------------------
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=${TZ}
+    volumes:
+      - ${NAS_PATH}:${NAS_PATH}
+      - ${COMMON_PATH}/configs/jellyseerr:/app/config
+    network_mode: "service:vpn"
+    restart: unless-stopped
