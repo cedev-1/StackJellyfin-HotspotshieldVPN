@@ -1,0 +1,37 @@
+client
+dev tun
+proto udp
+remote 8.8.8.8 822
+verify-x509-name domain-info.us name
+resolv-retry infinite
+remote-random
+nobind
+tun-mtu 1500
+tun-mtu-extra 32
+mssfix 1450
+persist-key
+persist-tun
+ping 15
+ping-restart 60
+reneg-sec 0
+remote-cert-tls server
+comp-noadapt
+auth-user-pass /etc/openvpn/credentials
+auth sha256
+cipher AES-256-CBC
+verb 3
+
+<cert>
+-----BEGIN CERTIFICATE-----
+-----END CERTIFICATE-----
+</cert>
+
+<key>
+-----BEGIN PRIVATE KEY-----
+-----END PRIVATE KEY-----
+</key>
+
+<ca>
+-----BEGIN CERTIFICATE-----
+-----END CERTIFICATE-----
+</ca>
